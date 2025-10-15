@@ -1,12 +1,5 @@
-// server.js
-import express from "express";
-import fetch from "node-fetch"; // remove this line if using Node 18+
-
-const app = express();
-const PORT = process.env.PORT || 3000;
-
-app.get("/api/gamepasses/:userId", async (req, res) => {
-  const { userId } = req.params;
+export default async function handler(req, res) {
+  const { userId } = req.query;
 
   try {
     // Step 1: Fetch public universes for the user
@@ -21,7 +14,7 @@ app.get("/api/gamepasses/:userId", async (req, res) => {
     const universes = universeData.data || [];
 
     if (universes.length === 0)
-      return res.json({ userId, gamepasses: [], message: "No public games found." });
+      return res.status(200).json({ userId, gamepasses: [], message: "No public games found." });
 
     // Step 2: Fetch gamepasses from each universe
     const allPasses = [];
@@ -33,7 +26,7 @@ app.get("/api/gamepasses/:userId", async (req, res) => {
 
       if (passRes.ok) {
         const passData = await passRes.json();
-        if (passData.data && passData.data.length > 0) {
+        if (passData.data?.length > 0) {
           passData.data.forEach(p => {
             allPasses.push({
               ...p,
@@ -46,7 +39,7 @@ app.get("/api/gamepasses/:userId", async (req, res) => {
     }
 
     // Step 3: Return combined result
-    return res.json({
+    return res.status(200).json({
       userId,
       total: allPasses.length,
       gamepasses: allPasses,
@@ -56,6 +49,4 @@ app.get("/api/gamepasses/:userId", async (req, res) => {
     console.error(err);
     return res.status(500).json({ error: err.message });
   }
-});
-
-app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
+}
