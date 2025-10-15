@@ -14,7 +14,11 @@ export default async function handler(req, res) {
     const universes = universeData.data || [];
 
     if (universes.length === 0)
-      return res.status(200).json({ userId, gamepasses: [], message: "No public games found." });
+      return res.status(200).json({
+        userId,
+        gamepasses: [],
+        message: "No public games found.",
+      });
 
     // Step 2: Fetch gamepasses from each universe
     const allPasses = [];
@@ -27,7 +31,7 @@ export default async function handler(req, res) {
       if (passRes.ok) {
         const passData = await passRes.json();
         if (passData.data?.length > 0) {
-          passData.data.forEach(p => {
+          passData.data.forEach((p) => {
             allPasses.push({
               ...p,
               universeId: u.id,
@@ -44,7 +48,6 @@ export default async function handler(req, res) {
       total: allPasses.length,
       gamepasses: allPasses,
     });
-
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: err.message });
