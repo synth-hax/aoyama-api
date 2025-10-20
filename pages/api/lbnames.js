@@ -11,7 +11,6 @@ export default async function handler(req, res) {
       });
     }
 
-    // Normalize into array of numbers
     const userIds = idsParam
       .split(",")
       .map((id) => Number(id.trim()))
@@ -21,29 +20,26 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "No valid user IDs found." });
     }
 
-    // Roblox batch user lookup
-    const userRes = await fetch("https://users.roblox.com/v1/users", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userIds }),
-    });
+    const results = [];
 
-    if (!userRes.ok) {
-      throw new Error(`Failed to fetch users: ${userRes.status}`);
+    for (const userId of userIds) {
+      try {
+        const userRes = await fetch(`https://users.roblox.com/v1/users/${userId}`);
+        if (!userRes.ok) continue; // skip invalid users
+
+        const u = await userRes.json();
+        results.push({
+          userId: u.id,
+          displayName: u.displayName,
+          username: u.name,
+          description: u.description,
+          created: u.created,
+          isBanned: u.isBanned,
+        });
+      } catch (e) {
+        console.error(`Failed to fetch user ${userId}:`, e.message);
+      }
     }
-
-    const data = await userRes.json();
-    const users = data.data || [];
-
-    // Map simplified output
-    const results = users.map((u) => ({
-      userId: u.id,
-      displayName: u.displayName,
-      username: u.name,
-      description: u.description,
-      created: u.created,
-      isBanned: u.isBanned,
-    }));
 
     return res.status(200).json({
       count: results.length,
