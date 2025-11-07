@@ -27,7 +27,7 @@ export default async function handler(req, res) {
       });
     }
 
-    // Step 2: Fetch gamepasses for each universe in parallel
+    // Step 2: Fetch gamepasses for each universe
     const gamepassPromises = universes.map(async (u) => {
       try {
         const passRes = await fetch(
@@ -41,31 +41,34 @@ export default async function handler(req, res) {
 
         if (passes.length === 0) return [];
 
-        // Step 3: Fetch prices via Marketplace v1 batch API
-        const productIds = passes.map((p) => ({ id: p.productId }));
-        const productRes = await fetch(
-          'https://apis.roblox.com/marketplace/v1/products/details',
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ items: productIds }),
-          }
+        // Step 3: Fetch price for each gamepass via the proper endpoint
+        const passesWithPrice = await Promise.all(
+          passes.map(async (p) => {
+            try {
+              const priceRes = await fetch(
+                `https://apis.roblox.com/game-passes/v1/game-passes/${p.id}/product-info`
+              );
+              const priceData = await priceRes.json();
+
+              return {
+                ...p,
+                universeId: u.id,
+                universeName: u.name,
+                price: priceData.PriceInRobux ?? null,
+              };
+            } catch (err) {
+              console.error(`Failed to fetch price for gamepass ${p.id}`, err);
+              return {
+                ...p,
+                universeId: u.id,
+                universeName: u.name,
+                price: null,
+              };
+            }
+          })
         );
 
-        const productData = await productRes.json();
-        const priceMap = {};
-
-        productData.data?.forEach((item) => {
-          priceMap[item.id] = item.priceInRobux ?? null;
-        });
-
-        // Step 4: Combine gamepasses with their prices
-        return passes.map((p) => ({
-          ...p,
-          universeId: u.id,
-          universeName: u.name,
-          price: priceMap[p.productId] ?? null,
-        }));
+        return passesWithPrice;
       } catch (err) {
         console.error(`Failed for universe ${u.id}:`, err);
         return [];
@@ -75,7 +78,6 @@ export default async function handler(req, res) {
     const passesArray = await Promise.all(gamepassPromises);
     const allPasses = passesArray.flat();
 
-    // Step 5: Return result
     return res.status(200).json({
       userId,
       total: allPasses.length,
