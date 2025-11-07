@@ -30,8 +30,8 @@ export default async function handler(req, res) {
 
       if (passRes.ok) {
         const passData = await passRes.json();
-        if (passData.data?.length > 0) {
-          passData.data.forEach((p) => {
+        if (passData.gamePasses?.length > 0) {
+          passData.gamePasses.forEach((p) => {
             allPasses.push({
               ...p,
               universeId: u.id,
