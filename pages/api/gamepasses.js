@@ -25,7 +25,7 @@ export default async function handler(req, res) {
 
     for (const u of universes) {
       const passRes = await fetch(
-        `https://games.roblox.com/v1/games/${u.id}/game-passes?limit=100`
+        `https://apis.roblox.com/game-passes/v1/universes/${u.id}/game-passes?`
       );
 
       if (passRes.ok) {
