@@ -39,31 +39,35 @@ export default async function handler(req, res) {
         const passData = await passRes.json();
         const passes = passData.gamePasses || [];
 
-        // Step 3: Fetch price for each gamepass in parallel
-        const passesWithPrice = await Promise.all(
-          passes.map(async (p) => {
-            try {
-              const productRes = await fetch(
-                `https://api.roblox.com/marketplace/productinfo?assetId=${p.productId}`
-              );
-              const productData = await productRes.json();
+        if (passes.length === 0) return [];
 
-              return {
-                ...p,
-                universeId: u.id,
-                universeName: u.name,
-                price: productData?.PriceInRobux ?? null, // null if not for sale
-              };
-            } catch (err) {
-              console.error(`Failed to fetch price for productId ${p.productId}`, err);
-              return { ...p, universeId: u.id, universeName: u.name, price: null };
-            }
-          })
+        // Step 3: Fetch prices via Marketplace v1 batch API
+        const productIds = passes.map((p) => ({ id: p.productId }));
+        const productRes = await fetch(
+          'https://apis.roblox.com/marketplace/v1/products/details',
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ items: productIds }),
+          }
         );
 
-        return passesWithPrice;
+        const productData = await productRes.json();
+        const priceMap = {};
+
+        productData.data?.forEach((item) => {
+          priceMap[item.id] = item.priceInRobux ?? null;
+        });
+
+        // Step 4: Combine gamepasses with their prices
+        return passes.map((p) => ({
+          ...p,
+          universeId: u.id,
+          universeName: u.name,
+          price: priceMap[p.productId] ?? null,
+        }));
       } catch (err) {
-        console.error(`Failed to fetch gamepasses for universe ${u.id}`, err);
+        console.error(`Failed for universe ${u.id}:`, err);
         return [];
       }
     });
@@ -71,7 +75,7 @@ export default async function handler(req, res) {
     const passesArray = await Promise.all(gamepassPromises);
     const allPasses = passesArray.flat();
 
-    // Step 4: Return combined result
+    // Step 5: Return result
     return res.status(200).json({
       userId,
       total: allPasses.length,
